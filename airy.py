@@ -6,46 +6,10 @@ import requests
 from datetime import datetime
 from pytz import timezone
 import pytz
+from functools import reduce
+import sqlite3
 
-
-class AiryArgparse:
-    def __init__(self, parsedArgs):
-        networkManager = NetworkManager()
-        database = AiryDB()
-        airy = Airy(parsedArgs.sensorID, networkManager, database)
-        airy.run()
-
-class Airy:
-    def __init__(self, sensorID, networkManager, database):
-        self.sensorID = sensorID
-        self.networkManager = networkManager
-        self.database = database
-
-    def run(self):
-        print('Airy SensorID: {0}'.format(self.sensorID))
-        response =  self.networkManager.getSensorData(self.sensorID)
-
-        responseDict = None
-
-        if response.status_code == 200:
-            responseDict = response.json()
-            results = []
-            for e in responseDict['results']:
-                pResult = PurpleAirResult(e)
-                results.append(pResult)
-
-            print(results[0].pm2_5Value)
-            print(results[1].pm2_5Value)
-
-
-class AiryDB:
-    def __init__(self):
-        pass
-
-
-class PurpleAirResult:
-    def __init__(self, resultDict):
-        fieldMap = {
+fieldMap = {
             'ID': 'sensorID',
             "Label": "label",
             "DEVICE_LOCATIONTYPE": "deviceLocationType",
@@ -79,6 +43,108 @@ class PurpleAirResult:
             "Stats": "stats"
         }
 
+class AiryArgparse:
+    def __init__(self, parsedArgs):
+        networkManager = NetworkManager()
+        database = AiryDB()
+        airy = Airy(parsedArgs.sensorID, networkManager, database)
+        airy.run()
+
+class Airy:
+    def __init__(self, sensorID, networkManager, database):
+        self.sensorID = sensorID
+        self.networkManager = networkManager
+        self.database = database
+
+    def run(self):
+        print('Airy SensorID: {0}'.format(self.sensorID))
+        response =  self.networkManager.getSensorData(self.sensorID)
+
+        responseDict = None
+
+        if response.status_code == 200:
+            responseDict = response.json()
+            for e in responseDict['results']:
+                ## Deserialize JSON result
+                pResult = PurpleAirResult(e)
+
+                ## Write to DB
+                if self.database.read(pResult) == None:
+                    self.database.write(pResult)
+
+            ## Check Delta
+
+            ## Send Message If Threshold Reached
+
+
+class AiryDB:
+    def __init__(self):
+        pathComponents = [os.environ['HOME'], 'Library', 'Application Support', 'airy']
+        libraryDir = reduce(lambda x, y: os.path.join(x, y), pathComponents)
+
+        if not os.path.exists(libraryDir):
+            sys.stderr.write('Initializing airy library')
+            os.mkdir(libraryDir)
+
+        self.dbFilename = os.path.join(libraryDir, 'airy.db')
+
+        conn = sqlite3.connect(self.dbFilename)
+        c = conn.cursor()
+        c.execute(''' SELECT count(name) FROM sqlite_master WHERE type='table' AND name='purpleair' ''')
+        if c.fetchone()[0] == 1:
+            print('Table exists.')
+        else:
+            print('Table does not exist.')
+            c.execute(''' CREATE TABLE purpleair ( sensorID integer, pm2_5Value real, lastSeen integer) ''')
+            conn.commit()
+
+        # commit the changes to db
+
+        # close the connection
+        conn.close()
+
+    def read(self, record):
+        print('{0}'.format(record.pm2_5Value))
+        return None
+
+
+    def write(self, record):
+        print('{0}'.format(record.pm2_5Value))
+
+        conn = sqlite3.connect(self.dbFilename)
+        c = conn.cursor()
+
+        bufList = []
+        bufList.append('INSERT')
+        bufList.append('INTO')
+        bufList.append('purpleair')
+        bufList.append('VALUES')
+        values = []
+        values.append('{0}'.format(record.sensorID))
+        values.append('{0}'.format(record.pm2_5Value))
+        values.append('{0}'.format(record.lastSeen))
+        bufList.append('({0})'.format(','.join(values)))
+
+        cmd = ' '.join(bufList)
+
+        c.execute(cmd)
+
+        conn.commit()
+        conn.close()
+
+
+
+
+
+
+
+
+
+
+class PurpleAirResult:
+    def __init__(self, resultDict):
+
+
         for key in fieldMap.keys():
             if key in resultDict.keys():
                 if key in ("PM2_5Value",
@@ -100,10 +166,10 @@ class PurpleAirResult:
                 elif key in ("humidity", "temp_f", "RSSI"):
                     setattr(self, fieldMap[key], int(resultDict[key]))
 
-                elif key in ('LastSeen', 'LastUpdateCheck', 'Created'):
-                    ts1 = datetime.fromtimestamp(resultDict[key], tz=pytz.utc)
-                    #ts1.astimezone(timezone('US/Pacific'))
-                    setattr(self, fieldMap[key], ts1)
+                #elif key in ('LastSeen', 'LastUpdateCheck', 'Created'):
+                #    ts1 = datetime.fromtimestamp(resultDict[key], tz=pytz.utc)
+                #   #ts1.astimezone(timezone('US/Pacific'))
+                #    setattr(self, fieldMap[key], ts1)
 
                 else:
                     setattr(self, fieldMap[key], resultDict[key])
