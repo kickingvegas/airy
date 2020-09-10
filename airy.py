@@ -91,7 +91,7 @@ class Airy:
         self.database = database
 
     def run(self):
-        print('Airy SensorID: {0}'.format(self.sensorID))
+        sys.stdout.write('Airy SensorID: {0}\n'.format(self.sensorID))
         response =  self.networkManager.getSensorData(self.sensorID)
 
         responseDict = None
@@ -126,7 +126,9 @@ class AiryDB:
         c = conn.cursor()
         c.execute(''' SELECT count(name) FROM sqlite_master WHERE type='table' AND name='purpleair' ''')
         if c.fetchone()[0] == 1:
-            sys.stderr.write('Table exists.\n')
+            pass
+            #sys.stderr.write('Table exists.\n')
+
         else:
             sys.stderr.write('Table does not exist.\n')
 
@@ -147,8 +149,18 @@ class AiryDB:
         conn.close()
 
     def read(self, record):
-        #print('{0}'.format(record.pm2_5Value))
-        return None
+        conn = sqlite3.connect(self.dbFilename)
+        c = conn.cursor()
+        cmd = 'select * from purpleair where lastSeen = {0} AND sensorID = {1}'.format(record.lastSeen, record.sensorID)
+        rows = c.execute(cmd).fetchall()
+        conn.commit()
+        conn.close()
+
+        if len(rows) == 0:
+            return None
+        else:
+            return rows
+
 
 
     def write(self, record):
@@ -235,7 +247,7 @@ class NetworkManager:
 
     def getSensorData(self, sensorID):
         url = 'https://www.purpleair.com/json?show={0}'.format(sensorID)
-        print(url)
+        #print(url)
         r = requests.get(url)
         return r
 
