@@ -8,6 +8,7 @@ from pytz import timezone
 import pytz
 from functools import reduce
 import sqlite3
+from statistics import mean
 
 fieldMap = {
     'ID': 'sensorID',
@@ -77,6 +78,54 @@ sqlFieldTypes = {
     'stats': 'text'
 }
 
+def getLocalTime(timestamp):
+    ts1 = datetime.fromtimestamp(timestamp, tz=pytz.utc)
+    localTime = ts1.astimezone(timezone('US/Pacific'))
+    return localTime
+
+healthLevelMap = {
+    0: 'Air quality is considered satisfactory.',
+    1: 'Air quality is acceptable.',
+    2: 'Members of sensitive groups may experience health effects if they are exposed for 24 hours.',
+    3: 'Everyone may begin to experience health effects if they are exposed for 24 hours.',
+    4: 'Health alert: everyone may experience more serious health effects if they are exposed for 24 hours.',
+    5: 'Health warnings of emergency conditions if they are exposed for 24 hours.',
+    6: 'Health warnings of emergency conditions if they are exposed for 24 hours.',
+    7: 'Health warnings of emergency conditions if they are exposed for 24 hours.',
+    8: 'Health warnings of emergency conditions if they are exposed for 24 hours.'
+}
+
+def healthLevel(value):
+    result = 0
+    if 0 <= value < 12:
+        result = 0
+    elif 12 <= value < 35:
+        result = 1
+
+    elif 35 <= value < 55:
+        result = 2
+
+    elif 55 <= value < 150:
+        result = 3
+
+    elif 150 <= value < 250:
+        result = 4
+
+    elif 250 <= value < 350:
+        result = 5
+
+    elif 350 <= value < 500:
+        result = 6
+
+    elif value >= 500:
+        result = 7
+
+    else:
+        result = 8
+
+    return result
+
+
 class AiryArgparse:
     def __init__(self, parsedArgs):
         networkManager = NetworkManager()
@@ -106,10 +155,31 @@ class Airy:
                 if self.database.read(pResult) == None:
                     self.database.write(pResult)
 
-            ## Check Delta
+            ## Check Deltas
+            sensorIDs = list(map(lambda x: x['ID'], responseDict['results']))
 
-            ## Send Message If Threshold Reached
+            if len(sensorIDs) > 0:
+                sensor2_5mean, deltaPercent, levelChanges = self.database.deltas(sensorIDs)
 
+                sys.stdout.write('Raw PM 2.5: {0} Δ: {1}%\n'.format(round(sensor2_5mean, 2), round(deltaPercent, 2)))
+
+                currentLevel, previousLevel = levelChanges
+                health = 'safe'
+                if currentLevel in (0, 1):
+                    health = 'safe'
+
+                healthLevelChange = currentLevel - previousLevel
+
+                sys.stdout.write('Advisory: {0}\n'.format(healthLevelMap[currentLevel]))
+
+                if healthLevelChange == 0:
+                    sys.stdout.write('No health level change\n')
+                elif healthLevelChange > 0:
+                    sys.stdout.write('ALERT: health level decrease\n')
+                elif healthLevelChange < 0:
+                    sys.stdout.write('ALERT: health level increase\n')
+                    if currentLevel in (0, 1) and previousLevel not in (0, 1):
+                        sys.stdout.write("Sending Message\n")
 
 class AiryDB:
     def __init__(self):
@@ -148,6 +218,45 @@ class AiryDB:
         # close the connection
         conn.close()
 
+    def deltas(self, sensorIDs):
+        conn = sqlite3.connect(self.dbFilename)
+        c = conn.cursor()
+        sensorData = []
+        for sensorID in sensorIDs:
+            cmd = 'select sensorID, pm2_5Value, humidity, lastSeen from purpleair where sensorID in ({0})  order by lastSeen desc limit 2'.format(sensorID)
+            rows = c.execute(cmd).fetchall()
+            sensorData.append(rows)
+
+        conn.close()
+
+        firstRow = map(lambda x: x[0], sensorData)
+        col_pm2_5 = map(lambda x: x[1], firstRow)
+        humidity = sensorData[0][0][2]
+
+        firstMean = mean(col_pm2_5)
+
+        #pm25_corrected = (0.534 * firstMean) - (0.0844 * humidity) + 5.604
+        aQandU = 0.778 * firstMean + 2.65
+        sys.stdout.write("AQandU: {0}\n".format(aQandU))
+
+        healthLevel1 = healthLevel(firstMean)
+
+        try:
+            secondRow = map(lambda x: x[1], sensorData)
+            col_pm2_5 = map(lambda x: x[1], secondRow)
+            secondMean = mean(col_pm2_5)
+            healthLevel2 = healthLevel(secondMean)
+
+            delta = firstMean - secondMean
+            deltaPercent = (delta / firstMean) * 100.0
+            levelChanges = (healthLevel1, healthLevel2)
+            return (firstMean, deltaPercent, levelChanges)
+        except:
+            return (firstMean, 0.0, (healthLevel1, healthLevel1))
+
+
+
+
     def read(self, record):
         conn = sqlite3.connect(self.dbFilename)
         c = conn.cursor()
@@ -164,7 +273,8 @@ class AiryDB:
 
 
     def write(self, record):
-        print('{0}: PM 2.5 Value: {1}'.format(record.sensorID, record.pm2_5Value))
+        localTime = getLocalTime(record.lastSeen)
+        sys.stdout.write('{0}: PM 2.5 Value: {1} {2}\n'.format(record.sensorID, record.pm2_5Value, localTime.isoformat()))
 
         conn = sqlite3.connect(self.dbFilename)
         c = conn.cursor()
@@ -204,7 +314,7 @@ class AiryDB:
 
 class PurpleAirResult:
     def __init__(self, resultDict):
-
+        #print (resultDict)
 
         for key in fieldMap.keys():
             if key in resultDict.keys():
