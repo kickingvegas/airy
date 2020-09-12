@@ -9,6 +9,9 @@ import pytz
 from functools import reduce
 import sqlite3
 from statistics import mean
+import aqi
+import json
+
 
 fieldMap = {
     'ID': 'sensorID',
@@ -84,58 +87,79 @@ def getLocalTime(timestamp):
     return localTime
 
 healthLevelMap = {
-    0: 'Air quality is considered satisfactory.',
-    1: 'Air quality is acceptable.',
-    2: 'Members of sensitive groups may experience health effects if they are exposed for 24 hours.',
-    3: 'Everyone may begin to experience health effects if they are exposed for 24 hours.',
-    4: 'Health alert: everyone may experience more serious health effects if they are exposed for 24 hours.',
-    5: 'Health warnings of emergency conditions if they are exposed for 24 hours.',
-    6: 'Health warnings of emergency conditions if they are exposed for 24 hours.',
-    7: 'Health warnings of emergency conditions if they are exposed for 24 hours.',
-    8: 'Health warnings of emergency conditions if they are exposed for 24 hours.'
+    0: 'Good. Air quality is considered satisfactory.',
+    1: 'Moderate. Air quality is acceptable.',
+    2: 'Unhealthy for Sensitive Groups. Members of sensitive groups may experience health effects if they are exposed for 24 hours.',
+    3: 'Unhealthy. Everyone may begin to experience health effects if they are exposed for 24 hours.',
+    4: 'Very Unhealthy. Health alert: everyone may experience more serious health effects if they are exposed for 24 hours.',
+    5: 'Very Unhealthy. Health warnings of emergency conditions if they are exposed for 24 hours.',
+    6: 'Very Unhealthy. Health warnings of emergency conditions if they are exposed for 24 hours.',
+    7: 'Very Unhealthy. Health warnings of emergency conditions if they are exposed for 24 hours.',
+    8: 'Very Unhealthy. Health warnings of emergency conditions if they are exposed for 24 hours.',
+    9: 'Very Unhealthy. Health warnings of emergency conditions if they are exposed for 24 hours.',
+    -1: 'Invalid level'
 }
 
 def healthLevel(value):
     result = 0
-    if 0 <= value < 12:
+    if 0 <= value < 50:
         result = 0
-    elif 12 <= value < 35:
+    elif 50 <= value < 100:
         result = 1
 
-    elif 35 <= value < 55:
+    elif 100 <= value < 150:
         result = 2
 
-    elif 55 <= value < 150:
+    elif 150 <= value < 200:
         result = 3
 
-    elif 150 <= value < 250:
+    elif 200 <= value < 250:
         result = 4
 
-    elif 250 <= value < 350:
+    elif 250 <= value < 300:
         result = 5
 
-    elif 350 <= value < 500:
+    elif 300 <= value < 350:
         result = 6
 
-    elif value >= 500:
+    elif 350 <= value < 400:
         result = 7
 
-    else:
+    elif 400 <= value < 500:
         result = 8
 
+    elif value >= 500:
+        result = 9
+
+    else:
+        result = -1
+
     return result
+
+def aq_and_u_adjustment(pa):
+    result = 0.778 * pa + 2.65
+    return result
+
+
+def convert2EPA(pm25):
+    epaPM25 = int(aqi.to_aqi([(aqi.POLLUTANT_PM25, pm25)]))
+    aqu25Adjust = aq_and_u_adjustment(pm25)
+    epaAQU = int(aqi.to_aqi([(aqi.POLLUTANT_PM25, aqu25Adjust)]))
+
+    return (epaPM25, epaAQU)
 
 
 class AiryArgparse:
     def __init__(self, parsedArgs):
         networkManager = NetworkManager()
         database = AiryDB()
-        airy = Airy(parsedArgs.sensorID, networkManager, database)
+        airy = Airy(parsedArgs, networkManager, database)
         airy.run()
 
 class Airy:
-    def __init__(self, sensorID, networkManager, database):
-        self.sensorID = sensorID
+    def __init__(self, args, networkManager, database):
+        self.args = args
+        self.sensorID = args.sensorID
         self.networkManager = networkManager
         self.database = database
 
@@ -159,27 +183,44 @@ class Airy:
             sensorIDs = list(map(lambda x: x['ID'], responseDict['results']))
 
             if len(sensorIDs) > 0:
-                sensor2_5mean, deltaPercent, levelChanges = self.database.deltas(sensorIDs)
+                current25Mean, previous25Mean = self.database.deltas(sensorIDs)
 
-                sys.stdout.write('Raw PM 2.5: {0} Δ: {1}%\n'.format(round(sensor2_5mean, 2), round(deltaPercent, 2)))
+                if previous25Mean != None:
+                    currentEPA = convert2EPA(current25Mean)
+                    previousEPA = convert2EPA(previous25Mean)
 
-                currentLevel, previousLevel = levelChanges
-                health = 'safe'
-                if currentLevel in (0, 1):
-                    health = 'safe'
+                    delta = current25Mean - previous25Mean
+                    deltaPercent = (delta / current25Mean) * 100.0
 
-                healthLevelChange = currentLevel - previousLevel
+                    renderDelta = '↑' if delta >= 0 else '↓'
 
-                sys.stdout.write('Advisory: {0}\n'.format(healthLevelMap[currentLevel]))
+                    sys.stdout.write('  Raw PM 2.5: {0} {1} {2}%\n'.format(round(current25Mean, 2), renderDelta, round(deltaPercent, 2)))
+                    sys.stdout.write('   EPA PM2.5: {0}\n'.format(currentEPA[0]))
+                    sys.stdout.write('AQ & U PM2.5: {0}\n'.format(currentEPA[1]))
 
-                if healthLevelChange == 0:
-                    sys.stdout.write('No health level change\n')
-                elif healthLevelChange > 0:
-                    sys.stdout.write('ALERT: health level decrease\n')
-                elif healthLevelChange < 0:
-                    sys.stdout.write('ALERT: health level increase\n')
-                    if currentLevel in (0, 1) and previousLevel not in (0, 1):
-                        sys.stdout.write("Sending Message\n")
+                    currentHealthLevel = healthLevel(currentEPA[1])
+                    previousHealthLevel = healthLevel(previousEPA[1])
+
+                    sys.stdout.write('Level {0}: {1}\n'.format(currentHealthLevel, healthLevelMap[currentHealthLevel]))
+
+                    if currentHealthLevel in (0, 1) and previousHealthLevel not in (0, 1):
+                        sys.stdout.write('ALERT: AQI level is ok.\n')
+                    elif currentHealthLevel not in (0, 1) and previousHealthLevel in (0, 1):
+                        sys.stdout.write('ALERT: AQI level is bad. Take measures.\n')
+                    elif currentHealthLevel not in (0, 1) and previousHealthLevel not in (0, 1):
+                        pass
+                        #sys.stdout.write('ALERT: AQI level is bad. Continue taking measures.\n')
+
+                else:
+                    currentEPA = convert2EPA(current25Mean)
+
+                    sys.stdout.write('  Raw PM 2.5: {0} Δ: {1}%\n'.format(round(current25Mean, 2), round(deltaPercent, 2)))
+                    sys.stdout.write('   EPA PM2.5: {0}\n'.format(currentEPA[0]))
+                    sys.stdout.write('AQ & U PM2.5: {0}\n'.format(currentEPA[1]))
+
+
+
+
 
 class AiryDB:
     def __init__(self):
@@ -233,28 +274,16 @@ class AiryDB:
         col_pm2_5 = map(lambda x: x[1], firstRow)
         humidity = sensorData[0][0][2]
 
-        firstMean = mean(col_pm2_5)
-
-        #pm25_corrected = (0.534 * firstMean) - (0.0844 * humidity) + 5.604
-        aQandU = 0.778 * firstMean + 2.65
-        sys.stdout.write("AQandU: {0}\n".format(aQandU))
-
-        healthLevel1 = healthLevel(firstMean)
+        currentMean = mean(col_pm2_5)
 
         try:
             secondRow = map(lambda x: x[1], sensorData)
             col_pm2_5 = map(lambda x: x[1], secondRow)
-            secondMean = mean(col_pm2_5)
-            healthLevel2 = healthLevel(secondMean)
+            previousMean = mean(col_pm2_5)
 
-            delta = firstMean - secondMean
-            deltaPercent = (delta / firstMean) * 100.0
-            levelChanges = (healthLevel1, healthLevel2)
-            return (firstMean, deltaPercent, levelChanges)
+            return (currentMean, previousMean)
         except:
-            return (firstMean, 0.0, (healthLevel1, healthLevel1))
-
-
+            return (currentMean, None)
 
 
     def read(self, record):
@@ -314,7 +343,8 @@ class AiryDB:
 
 class PurpleAirResult:
     def __init__(self, resultDict):
-        #print (resultDict)
+        #for key in resultDict.keys():
+        #    print('{0}: {1}'.format(key, resultDict[key]))
 
         for key in fieldMap.keys():
             if key in resultDict.keys():
@@ -343,7 +373,10 @@ class PurpleAirResult:
                     elif resultDict[key] == 'true':
                         setattr(self, fieldMap[key], 1)
 
-        
+                elif key == 'Stats':
+                    statsDict = json.loads(resultDict[key])
+                    setattr(self, fieldMap[key], statsDict)
+
                 #elif key in ('LastSeen', 'LastUpdateCheck', 'Created'):
                 #    ts1 = datetime.fromtimestamp(resultDict[key], tz=pytz.utc)
                 #   #ts1.astimezone(timezone('US/Pacific'))
