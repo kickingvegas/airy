@@ -2,18 +2,13 @@
 import os
 import sys
 import argparse
-from datetime import datetime
-from pytz import timezone
-import pytz
-from functools import reduce
-import sqlite3
-from statistics import mean
-import aqi
-import json
 from airylib import *
 from airylib.NetworkManager import  NetworkManager
 from airylib.AiryDB import AiryDB
 from airylib.PurpleAirResult import PurpleAirResult
+from datetime import datetime
+from pytz import timezone
+
 
 class AiryArgparse:
     def __init__(self, parsedArgs):
@@ -30,7 +25,7 @@ class Airy:
         self.database = database
 
     def run(self):
-        sys.stdout.write('Airy SensorID: {0}\n'.format(self.sensorID))
+        #sys.stdout.write('Airy SensorID: {0}\n'.format(self.sensorID))
         response =  self.networkManager.getSensorData(self.sensorID)
 
         responseDict = None
@@ -58,16 +53,10 @@ class Airy:
                     delta = current25Mean - previous25Mean
                     deltaPercent = (delta / current25Mean) * 100.0
 
-                    renderDelta = '↑' if delta >= 0 else '↓'
-
-                    sys.stdout.write('  Raw PM 2.5: {0} {1} {2}%\n'.format(round(current25Mean, 2), renderDelta, round(deltaPercent, 2)))
-                    sys.stdout.write('   EPA PM2.5: {0}\n'.format(currentEPA[0]))
-                    sys.stdout.write('AQ & U PM2.5: {0}\n'.format(currentEPA[1]))
+                    self.renderOutput(current25Mean, delta, deltaPercent, currentEPA, previousEPA)
 
                     currentHealthLevel = healthLevel(currentEPA[1])
                     previousHealthLevel = healthLevel(previousEPA[1])
-
-                    sys.stdout.write('Level {0}: {1}\n'.format(currentHealthLevel, healthLevelMap[currentHealthLevel]))
 
                     if currentHealthLevel in (0, 1) and previousHealthLevel not in (0, 1):
                         sys.stdout.write('ALERT: AQI level is ok.\n')
@@ -75,16 +64,44 @@ class Airy:
                         sys.stdout.write('ALERT: AQI level is bad. Take measures.\n')
                     elif currentHealthLevel not in (0, 1) and previousHealthLevel not in (0, 1):
                         pass
-                        #sys.stdout.write('ALERT: AQI level is bad. Continue taking measures.\n')
 
                 else:
                     currentEPA = convert2EPA(current25Mean)
+                    self.renderOutput(current25Mean, 0, 0.0, currentEPA, None)
 
-                    sys.stdout.write('  Raw PM 2.5: {0} Δ: {1}%\n'.format(round(current25Mean, 2), round(deltaPercent, 2)))
-                    sys.stdout.write('   EPA PM2.5: {0}\n'.format(currentEPA[0]))
-                    sys.stdout.write('AQ & U PM2.5: {0}\n'.format(currentEPA[1]))
+    def renderHumanOutput(self, current25Mean, delta, deltaPercent, currentEPA, previousEPA):
+        renderDelta = '↑' if delta >= 0 else '↓'
+        sys.stdout.write('Airy SensorID: {0}\n'.format(self.args.sensorID))
+        sys.stdout.write('   Raw PM 2.5: {0} {1} {2}%\n'.format(round(current25Mean, 2), renderDelta, round(deltaPercent, 2)))
+        sys.stdout.write('    EPA PM2.5: {0}\n'.format(currentEPA[0]))
+        sys.stdout.write(' AQ & U PM2.5: {0}\n'.format(currentEPA[1]))
+        currentHealthLevel = healthLevel(currentEPA[1])
+        sys.stdout.write('      Level {0}: {1}\n'.format(currentHealthLevel, healthLevelMap[currentHealthLevel]))
+
+    def renderLogOutput(self, current25Mean, delta, deltaPercent, currentEPA, previousEPA):
+        renderDelta = '↑' if delta >= 0 else '↓'
+
+        timestamp = datetime.now()
+        zone = timezone('US/Pacific')
+        localTime = zone.localize(timestamp)
+        tsBuf = localTime.strftime('%Y-%m-%d %H:%M:%S %z')
+
+        bufList = []
+        bufList.append('SensorID: {0}'.format(self.args.sensorID))
+        bufList.append('EPA_PM25: {0}'.format(currentEPA[0]))
+        bufList.append('AQU_PM25: {0}'.format(currentEPA[1]))
+        bufList.append('delta: {0} {1}'.format(renderDelta, round(deltaPercent, 2)))
+
+        buf = ', '.join(bufList)
+
+        sys.stdout.write('{0}: {1}\n'.format(tsBuf, buf))
 
 
+    def renderOutput(self, current25Mean, delta, deltaPercent, currentEPA, previousEPA):
+        if self.args.log_format:
+            self.renderLogOutput(current25Mean, delta, deltaPercent, currentEPA, previousEPA)
+        else:
+            self.renderHumanOutput(current25Mean, delta, deltaPercent, currentEPA, previousEPA)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=("airy - send an alert whenever a steep change in air quality from a "
