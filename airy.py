@@ -87,6 +87,13 @@ class Airy:
 
                     elif currentHealthLevel not in (0, 1) and previousHealthLevel not in (0, 1):
                         pass
+                        # if self.args.twilio_sid and self.args.twilio_token and self.args.twilio_number:
+                        #     smsMessenger = SMSMessenger(self.args.twilio_sid,
+                        #                                 self.args.twilio_token,
+                        #                                 self.args.twilio_number)
+                        #     msg = 'ALERT: AQI level {0} is bad. Take measures.'.format(currentEPA[1])
+                        #     smsMessenger.sendMessage('+14152972054', msg)
+                        
 
                 else:
                     currentEPA = convert2EPA(current25Mean)
