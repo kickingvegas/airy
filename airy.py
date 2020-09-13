@@ -69,31 +69,34 @@ class Airy:
                     previousHealthLevel = healthLevel(previousEPA[1])
 
                     if currentHealthLevel in (0, 1) and previousHealthLevel not in (0, 1):
-                        if self.args.twilio_sid and self.args.twilio_token and self.args.twilio_number:
+                        if self.args.to_sms and self.args.twilio_sid and self.args.twilio_token and self.args.twilio_number:
                             smsMessenger = SMSMessenger(self.args.twilio_sid,
                                                         self.args.twilio_token,
                                                         self.args.twilio_number)
                             msg = 'ALERT: AQI level {0} is good. Open the windows!'.format(currentEPA[1])
-                            smsMessenger.sendMessage('+14152972054', msg)
+                            for to in self.args.to_sms:
+                                smsMessenger.sendMessage(to, msg)
 
                     elif currentHealthLevel not in (0, 1) and previousHealthLevel in (0, 1):
 
-                        if self.args.twilio_sid and self.args.twilio_token and self.args.twilio_number:
+                        if self.args.to_sms and self.args.twilio_sid and self.args.twilio_token and self.args.twilio_number:
                             smsMessenger = SMSMessenger(self.args.twilio_sid,
                                                         self.args.twilio_token,
                                                         self.args.twilio_number)
                             msg = 'ALERT: AQI level {0} is bad. Take measures.'.format(currentEPA[1])
-                            smsMessenger.sendMessage('+14152972054', msg)
+                            for to in self.args.to_sms:
+                                smsMessenger.sendMessage(to, msg)
+
 
                     elif currentHealthLevel not in (0, 1) and previousHealthLevel not in (0, 1):
                         pass
-                        # if self.args.twilio_sid and self.args.twilio_token and self.args.twilio_number:
+                        # if self.args.to_sms and self.args.twilio_sid and self.args.twilio_token and self.args.twilio_number:
                         #     smsMessenger = SMSMessenger(self.args.twilio_sid,
                         #                                 self.args.twilio_token,
                         #                                 self.args.twilio_number)
                         #     msg = 'ALERT: AQI level {0} is bad. Take measures.'.format(currentEPA[1])
-                        #     smsMessenger.sendMessage('+14152972054', msg)
-                        
+                        #     for to in self.args.to_sms:
+                        #         smsMessenger.sendMessage(to, msg)
 
                 else:
                     currentEPA = convert2EPA(current25Mean)
@@ -144,6 +147,7 @@ if __name__ == '__main__':
     parser.add_argument('--twilio-number', action='store', help='Twilio Phone Number')
     parser.add_argument('-s', '--sync-sensors', action='store_true', help='Sync sensors')
     parser.add_argument('-q', '--query-nearby-sensors', action='store_true', help='Query nearby sensors')
+    parser.add_argument('-t', '--to-sms', action='append', nargs='+', help="Destination SMS number")
     result = parser.parse_args()
     app = AiryArgparse(result)
 
