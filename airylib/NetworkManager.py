@@ -8,3 +8,10 @@ class NetworkManager:
         r = requests.get(url)
         return r
 
+
+    def getSensorList(self):
+        url = 'https://www.purpleair.com/json'
+        r = requests.get(url)
+        return r
+
+
