@@ -15,6 +15,7 @@
 	"--twilio-sid=ACab5878ba43452d4e77688181c2a60217",
 	"--twilio-token=0c2e46ead4c384403e6717ef3b510065",
 	"--twilio-number=+13018042251",
+	"--to-sms=+14152972054",
 	"60015"
     ],
     "Label" : "com.yummymelon.airy",
