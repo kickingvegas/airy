@@ -13,3 +13,7 @@ start-daemon: ${HOME}/Library/LaunchAgents/com.yummymelon.airy.plist
 stop-daemon: 
 	launchctl unload ${HOME}/Library/LaunchAgents/com.yummymelon.airy.plist
 
+clean:
+	find . -name '*.*~' -exec rm {} \;
+	- rm com.yummymelon.airy.plist
+
