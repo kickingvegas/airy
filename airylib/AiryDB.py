@@ -24,8 +24,7 @@ class AiryDB:
             #sys.stderr.write('Table exists.\n')
 
         else:
-            sys.stderr.write('Table does not exist.\n')
-
+            sys.stderr.write('Creating purpleair table.\n')
             bufList = []
             bufList.append('CREATE')
             bufList.append('TABLE')
@@ -37,9 +36,21 @@ class AiryDB:
             c.execute(cmd)
             conn.commit()
 
-        # commit the changes to db
+        c.execute(''' SELECT count(name) FROM sqlite_master WHERE type='table' AND name='sensors' ''')
+        if c.fetchone()[0] == 1:
+            pass
+        else:
+            sys.stderr.write('Creating sensors table.\n')
+            bufList = []
+            bufList.append('CREATE')
+            bufList.append('TABLE')
+            bufList.append('sensors')
+            columns = ['sensorID integer', 'label text', 'lat real', 'lon real', 'deviceLocationType text']
+            bufList.append('({0})'.format(', '.join(columns)))
+            cmd = ' '.join(bufList)
+            c.execute(cmd)
+            conn.commit()
 
-        # close the connection
         conn.close()
 
     def deltas(self, sensorIDs):
@@ -68,7 +79,6 @@ class AiryDB:
         except:
             return (currentMean, None)
 
-
     def read(self, record):
         conn = sqlite3.connect(self.dbFilename)
         c = conn.cursor()
@@ -81,7 +91,6 @@ class AiryDB:
             return None
         else:
             return rows
-
 
 
     def write(self, record):
@@ -123,3 +132,60 @@ class AiryDB:
 
         conn.commit()
         conn.close()
+
+    def openConnection(self):
+        conn = sqlite3.connect(self.dbFilename)
+        return conn
+
+    def closeConnection(self, conn):
+        conn.commit()
+        conn.close()
+
+    def readSensor(self, record, conn):
+        cmd = 'select * from sensors where sensorID = {0}'.format(record.sensorID)
+        c = conn.cursor()
+        rows = c.execute(cmd).fetchall()
+
+        if len(rows) == 0:
+            return None
+        else:
+            return rows
+
+
+    def createSensor(self, record, conn):
+        c = conn.cursor()
+        bufList = []
+        bufList.append('INSERT')
+        bufList.append('INTO')
+        bufList.append('sensors')
+
+        columns = []
+        values = []
+
+        fieldMapValues = ['sensorID', 'lat', 'lon', 'label', 'deviceLocationType']
+        for key in fieldMapValues:
+            try:
+                value = getattr(record, key)
+
+                if isinstance(value, str):
+                    valueString = '"{0}"'.format(value)
+                else:
+                    valueString = '{0}'.format(value)
+                values.append(valueString)
+                columns.append(key)
+            except AttributeError:
+                continue
+
+        bufList.append('({0})'.format(','.join(columns)))
+        bufList.append('VALUES')
+        bufList.append('({0})'.format(','.join(values)))
+
+        cmd = ' '.join(bufList)
+
+        c.execute(cmd)
+        conn.commit()
+
+
+    def updateSensor(self, record, conn):
+        # TODO: Implement update
+        pass
