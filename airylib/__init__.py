@@ -1,5 +1,4 @@
 from datetime import datetime
-from pytz import timezone
 import pytz
 import aqi
 
@@ -73,7 +72,7 @@ sqlFieldTypes = {
 
 def getLocalTime(timestamp):
     ts1 = datetime.fromtimestamp(timestamp, tz=pytz.utc)
-    localTime = ts1.astimezone(timezone('US/Pacific'))
+    localTime = ts1.astimezone()
     return localTime
 
 healthLevelMap = {
