@@ -7,6 +7,7 @@ from airylib.NetworkManager import  NetworkManager
 from airylib.AiryDB import AiryDB
 from airylib.PurpleAirResult import PurpleAirResult
 from airylib.SMSMessenger import SMSMessenger
+from airylib.SensorManager import SensorManager
 from datetime import datetime
 from pytz import timezone
 
@@ -14,8 +15,17 @@ class AiryArgparse:
     def __init__(self, parsedArgs):
         networkManager = NetworkManager()
         database = AiryDB()
-        airy = Airy(parsedArgs, networkManager, database)
-        airy.run()
+        if parsedArgs.query_nearby_sensors:
+            sensorManager = SensorManager(parsedArgs, networkManager, database)
+
+
+        elif parsedArgs.sync_sensors:
+            sensorManager = SensorManager(parsedArgs, networkManager, database)
+            sensorManager.sync()
+
+        else:
+            airy = Airy(parsedArgs, networkManager, database)
+            airy.run()
 
 class Airy:
     def __init__(self, args, networkManager, database):
@@ -85,7 +95,7 @@ class Airy:
     def renderHumanOutput(self, current25Mean, delta, deltaPercent, currentEPA, previousEPA):
         renderDelta = '↑' if delta >= 0 else '↓'
         sys.stdout.write('Airy SensorID: {0}\n'.format(self.args.sensorID))
-        sys.stdout.write('   Raw PM 2.5: {0} {1} {2}%\n'.format(round(current25Mean, 2), renderDelta, round(deltaPercent, 2)))
+        sys.stdout.write('    Raw PM2.5: {0} {1} {2}%\n'.format(round(current25Mean, 2), renderDelta, round(deltaPercent, 2)))
         sys.stdout.write('    EPA PM2.5: {0}\n'.format(currentEPA[0]))
         sys.stdout.write(' AQ & U PM2.5: {0}\n'.format(currentEPA[1]))
         currentHealthLevel = healthLevel(currentEPA[1])
@@ -125,6 +135,8 @@ if __name__ == '__main__':
     parser.add_argument('--twilio-sid', action='store', help='Twilio Account SID')
     parser.add_argument('--twilio-token', action='store', help='Twilio Account Token')
     parser.add_argument('--twilio-number', action='store', help='Twilio Phone Number')
+    parser.add_argument('-s', '--sync-sensors', action='store_true', help='Sync sensors')
+    parser.add_argument('-q', '--query-nearby-sensors', action='store_true', help='Query nearby sensors')
     result = parser.parse_args()
     app = AiryArgparse(result)
 
