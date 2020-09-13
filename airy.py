@@ -6,9 +6,9 @@ from airylib import *
 from airylib.NetworkManager import  NetworkManager
 from airylib.AiryDB import AiryDB
 from airylib.PurpleAirResult import PurpleAirResult
+from airylib.SMSMessenger import SMSMessenger
 from datetime import datetime
 from pytz import timezone
-
 
 class AiryArgparse:
     def __init__(self, parsedArgs):
@@ -59,9 +59,22 @@ class Airy:
                     previousHealthLevel = healthLevel(previousEPA[1])
 
                     if currentHealthLevel in (0, 1) and previousHealthLevel not in (0, 1):
-                        sys.stdout.write('ALERT: AQI level is ok.\n')
+                        if self.args.twilio_sid and self.args.twilio_token and self.args.twilio_number:
+                            smsMessenger = SMSMessenger(self.args.twilio_sid,
+                                                        self.args.twilio_token,
+                                                        self.args.twilio_number)
+                            msg = 'ALERT: AQI level {0} is good. Open the windows!'.format(currentEPA[1])
+                            smsMessenger.sendMessage('+14152972054', msg)
+
                     elif currentHealthLevel not in (0, 1) and previousHealthLevel in (0, 1):
-                        sys.stdout.write('ALERT: AQI level is bad. Take measures.\n')
+
+                        if self.args.twilio_sid and self.args.twilio_token and self.args.twilio_number:
+                            smsMessenger = SMSMessenger(self.args.twilio_sid,
+                                                        self.args.twilio_token,
+                                                        self.args.twilio_number)
+                            msg = 'ALERT: AQI level {0} is bad. Take measures.'.format(currentEPA[1])
+                            smsMessenger.sendMessage('+14152972054', msg)
+
                     elif currentHealthLevel not in (0, 1) and previousHealthLevel not in (0, 1):
                         pass
 
@@ -88,9 +101,10 @@ class Airy:
 
         bufList = []
         bufList.append('SensorID: {0}'.format(self.args.sensorID))
+        bufList.append('Raw_PM25: {0}'.format(round(current25Mean, 2)))
         bufList.append('EPA_PM25: {0}'.format(currentEPA[0]))
         bufList.append('AQU_PM25: {0}'.format(currentEPA[1]))
-        bufList.append('delta: {0} {1}'.format(renderDelta, round(deltaPercent, 2)))
+        bufList.append('delta: {0} {1}%'.format(renderDelta, round(deltaPercent, 2)))
 
         buf = ', '.join(bufList)
 
@@ -108,6 +122,9 @@ if __name__ == '__main__':
                                                   "public Purple Air monitor is detected"))
     parser.add_argument('sensorID', action='store', type=int)
     parser.add_argument('-l', '--log-format', action='store_true', help='Emit log file format')
+    parser.add_argument('--twilio-sid', action='store', help='Twilio Account SID')
+    parser.add_argument('--twilio-token', action='store', help='Twilio Account Token')
+    parser.add_argument('--twilio-number', action='store', help='Twilio Phone Number')
     result = parser.parse_args()
     app = AiryArgparse(result)
 
