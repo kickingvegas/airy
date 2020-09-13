@@ -86,7 +86,7 @@ class AiryDB:
 
     def write(self, record):
         localTime = getLocalTime(record.lastSeen)
-        sys.stdout.write('{0}: PM 2.5 Value: {1} {2}\n'.format(record.sensorID, record.pm2_5Value, localTime.isoformat()))
+        #sys.stdout.write('{0}: PM 2.5 Value: {1} {2}\n'.format(record.sensorID, record.pm2_5Value, localTime.isoformat()))
 
         conn = sqlite3.connect(self.dbFilename)
         c = conn.cursor()
