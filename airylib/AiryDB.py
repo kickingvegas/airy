@@ -68,7 +68,13 @@ class AiryDB:
         col_pm2_5 = map(lambda x: x[1], firstRow)
         humidity = sensorData[0][0][2]
 
-        currentMean = mean(col_pm2_5)
+        primary, secondary = col_pm2_5
+        if primary == 0.0 and secondary > 0.0:
+            currentMean = secondary
+        elif primary > 0.0 and secondary == 0.0:
+            currentMean = primary
+        else:
+            currentMean = mean([primary,secondary])
 
         try:
             secondRow = map(lambda x: x[1], sensorData)
