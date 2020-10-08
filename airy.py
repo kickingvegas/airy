@@ -42,9 +42,14 @@ class Airy:
 
         if response.status_code == 200:
             responseDict = response.json()
+
+            sensorLabel = None
+
             for e in responseDict['results']:
                 ## Deserialize JSON result
                 pResult = PurpleAirResult(e)
+                if sensorLabel == None:
+                    sensorLabel = pResult.label
 
                 ## Write to DB
                 if self.database.read(pResult) == None:
@@ -73,7 +78,13 @@ class Airy:
                             smsMessenger = SMSMessenger(self.args.twilio_sid,
                                                         self.args.twilio_token,
                                                         self.args.twilio_number)
-                            msg = 'ALERT: AQI level {0} is good. Open the windows!'.format(currentEPA[1])
+
+                            currentHealthLevel = healthLevel(currentEPA[1])
+                            msg = '{0}: AQ&U: {1}, AQI: {2}: {3}'.format(sensorLabel,
+                                                                         currentEPA[1],
+                                                                         currentHealthLevel,
+                                                                         healthLevelMap[currentHealthLevel])
+
                             for to in self.args.to_sms:
                                 smsMessenger.sendMessage(to, msg)
 
@@ -83,20 +94,32 @@ class Airy:
                             smsMessenger = SMSMessenger(self.args.twilio_sid,
                                                         self.args.twilio_token,
                                                         self.args.twilio_number)
-                            msg = 'ALERT: AQI level {0} is bad. Take measures.'.format(currentEPA[1])
+                            currentHealthLevel = healthLevel(currentEPA[1])
+
+                            msg = '{0}: AQ&U: {1}, AQI: {2}: {3}'.format(sensorLabel,
+                                                                         currentEPA[1],
+                                                                         currentHealthLevel,
+                                                                         healthLevelMap[currentHealthLevel])
+
                             for to in self.args.to_sms:
                                 smsMessenger.sendMessage(to, msg)
 
 
-                    elif currentHealthLevel not in (0, 1) and previousHealthLevel not in (0, 1):
-                        pass
-                        # if self.args.to_sms and self.args.twilio_sid and self.args.twilio_token and self.args.twilio_number:
-                        #     smsMessenger = SMSMessenger(self.args.twilio_sid,
-                        #                                 self.args.twilio_token,
-                        #                                 self.args.twilio_number)
-                        #     msg = 'ALERT: AQI level {0} is bad. Take measures.'.format(currentEPA[1])
-                        #     for to in self.args.to_sms:
-                        #         smsMessenger.sendMessage(to, msg)
+                    else:
+                        always = False
+                        if self.args.to_sms and self.args.twilio_sid and self.args.twilio_token and self.args.twilio_number and always:
+                            smsMessenger = SMSMessenger(self.args.twilio_sid,
+                                                        self.args.twilio_token,
+                                                        self.args.twilio_number)
+                            currentHealthLevel = healthLevel(currentEPA[1])
+                            msg = '{0}: AQ&U: {1}, AQI: {2}: {3}'.format(sensorLabel,
+                                                                                currentEPA[1],
+                                                                                currentHealthLevel,
+                                                                                healthLevelMap[currentHealthLevel])
+
+
+                            for to in self.args.to_sms:
+                                smsMessenger.sendMessage(to, msg)
 
                 else:
                     currentEPA = convert2EPA(current25Mean)
