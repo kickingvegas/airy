@@ -113,10 +113,9 @@ class Airy:
                                                         self.args.twilio_number)
                             currentHealthLevel = healthLevel(currentEPA[1])
                             msg = '{0}: AQ&U: {1}, AQI: {2}: {3}'.format(sensorLabel,
-                                                                                currentEPA[1],
-                                                                                currentHealthLevel,
-                                                                                healthLevelMap[currentHealthLevel])
-
+                                                                         currentEPA[1],
+                                                                         currentHealthLevel,
+                                                                         healthLevelMap[currentHealthLevel])
 
                             for to in self.args.to_sms:
                                 smsMessenger.sendMessage(to, msg)
