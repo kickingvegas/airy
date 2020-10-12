@@ -1,3 +1,18 @@
+##
+# Copyright 2020 Charles Y. Choi
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import sqlite3
 import os
 import sys
@@ -46,6 +61,24 @@ class AiryDB:
             bufList.append('TABLE')
             bufList.append('sensors')
             columns = ['sensorID integer', 'label text', 'lat real', 'lon real', 'deviceLocationType text']
+            bufList.append('({0})'.format(', '.join(columns)))
+            cmd = ' '.join(bufList)
+            c.execute(cmd)
+            conn.commit()
+
+        c.execute(''' SELECT count(name) FROM sqlite_master WHERE type='index' AND name='idx_sensorID' ''')
+        if c.fetchone()[0] == 1:
+            pass
+        else:
+            sys.stderr.write('Creating index for sensors.sensorID.\n')
+            bufList = []
+            bufList.append('CREATE')
+            bufList.append('UNIQUE')
+            bufList.append('INDEX')
+            bufList.append('"idx_sensorID"')
+            bufList.append('ON')
+            bufList.append('sensors')
+            columns = ['sensorID']
             bufList.append('({0})'.format(', '.join(columns)))
             cmd = ' '.join(bufList)
             c.execute(cmd)
@@ -193,5 +226,48 @@ class AiryDB:
 
 
     def updateSensor(self, record, conn):
-        # TODO: Implement update
-        pass
+        c = conn.cursor()
+        bufList = []
+        bufList.append('UPDATE')
+        bufList.append('sensors')
+        bufList.append('set')
+
+        columns = []
+        values = []
+
+        fieldMapValues = ['sensorID', 'lat', 'lon', 'label', 'deviceLocationType']
+        for key in fieldMapValues:
+            try:
+                value = getattr(record, key)
+
+                if isinstance(value, str):
+                    valueString = '"{0}"'.format(value)
+                else:
+                    valueString = '{0}'.format(value)
+                values.append(valueString)
+                columns.append(key)
+            except AttributeError:
+                continue
+
+        pairList = []
+        for pair in zip(columns, values):
+            columnName, value = pair
+            pairList.append('{0} = {1}'.format(columnName, value))
+        bufList.append('{0}'.format(', '.join(pairList)))
+
+        bufList.append('WHERE')
+        bufList.append('sensorID = {0}'.format(record.sensorID))
+
+        cmd = ' '.join(bufList)
+        sys.stderr.write('{0}\n'.format(cmd))
+
+        c.execute(cmd)
+        conn.commit()
+
+
+
+
+
+
+
+

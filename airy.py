@@ -1,4 +1,19 @@
 #!/usr/bin/env python3
+##
+# Copyright 2020 Charles Y. Choi
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import os
 import sys
 import argparse
@@ -11,17 +26,24 @@ from airylib.SensorManager import SensorManager
 from datetime import datetime
 from pytz import timezone
 
+AIRY_VERSION = '0.1.0'
+
 class AiryArgparse:
     def __init__(self, parsedArgs):
         networkManager = NetworkManager()
         database = AiryDB()
-        if parsedArgs.query_nearby_sensors:
-            sensorManager = SensorManager(parsedArgs, networkManager, database)
 
+        if parsedArgs.version:
+            sys.stdout.write('{0}\n'.format(AIRY_VERSION))
+            sys.exit(0)
 
-        elif parsedArgs.sync_sensors:
+        if parsedArgs.sync_sensors:
             sensorManager = SensorManager(parsedArgs, networkManager, database)
             sensorManager.sync()
+
+        elif parsedArgs.query_nearby_sensors:
+            # TODO: implement
+            sensorManager = SensorManager(parsedArgs, networkManager, database)
 
         else:
             airy = Airy(parsedArgs, networkManager, database)
@@ -34,6 +56,7 @@ class Airy:
         self.networkManager = networkManager
         self.database = database
 
+
     def run(self):
         #sys.stdout.write('Airy SensorID: {0}\n'.format(self.sensorID))
         response =  self.networkManager.getSensorData(self.sensorID)
@@ -42,9 +65,14 @@ class Airy:
 
         if response.status_code == 200:
             responseDict = response.json()
+
+            sensorLabel = None
+
             for e in responseDict['results']:
                 ## Deserialize JSON result
                 pResult = PurpleAirResult(e)
+                if sensorLabel == None:
+                    sensorLabel = pResult.label
 
                 ## Write to DB
                 if self.database.read(pResult) == None:
@@ -73,7 +101,13 @@ class Airy:
                             smsMessenger = SMSMessenger(self.args.twilio_sid,
                                                         self.args.twilio_token,
                                                         self.args.twilio_number)
-                            msg = 'ALERT: AQI level {0} is good. Open the windows!'.format(currentEPA[1])
+
+                            currentHealthLevel = healthLevel(currentEPA[1])
+                            msg = '{0}: AQ&U: {1}, AQI: {2}: {3}'.format(sensorLabel,
+                                                                         currentEPA[1],
+                                                                         currentHealthLevel,
+                                                                         healthLevelMap[currentHealthLevel])
+
                             for to in self.args.to_sms:
                                 smsMessenger.sendMessage(to, msg)
 
@@ -83,20 +117,31 @@ class Airy:
                             smsMessenger = SMSMessenger(self.args.twilio_sid,
                                                         self.args.twilio_token,
                                                         self.args.twilio_number)
-                            msg = 'ALERT: AQI level {0} is bad. Take measures.'.format(currentEPA[1])
+                            currentHealthLevel = healthLevel(currentEPA[1])
+
+                            msg = '{0}: AQ&U: {1}, AQI: {2}: {3}'.format(sensorLabel,
+                                                                         currentEPA[1],
+                                                                         currentHealthLevel,
+                                                                         healthLevelMap[currentHealthLevel])
+
                             for to in self.args.to_sms:
                                 smsMessenger.sendMessage(to, msg)
 
 
-                    elif currentHealthLevel not in (0, 1) and previousHealthLevel not in (0, 1):
-                        pass
-                        # if self.args.to_sms and self.args.twilio_sid and self.args.twilio_token and self.args.twilio_number:
-                        #     smsMessenger = SMSMessenger(self.args.twilio_sid,
-                        #                                 self.args.twilio_token,
-                        #                                 self.args.twilio_number)
-                        #     msg = 'ALERT: AQI level {0} is bad. Take measures.'.format(currentEPA[1])
-                        #     for to in self.args.to_sms:
-                        #         smsMessenger.sendMessage(to, msg)
+                    else:
+                        always = False
+                        if self.args.to_sms and self.args.twilio_sid and self.args.twilio_token and self.args.twilio_number and always:
+                            smsMessenger = SMSMessenger(self.args.twilio_sid,
+                                                        self.args.twilio_token,
+                                                        self.args.twilio_number)
+                            currentHealthLevel = healthLevel(currentEPA[1])
+                            msg = '{0}: AQ&U: {1}, AQI: {2}: {3}'.format(sensorLabel,
+                                                                         currentEPA[1],
+                                                                         currentHealthLevel,
+                                                                         healthLevelMap[currentHealthLevel])
+
+                            for to in self.args.to_sms:
+                                smsMessenger.sendMessage(to, msg)
 
                 else:
                     currentEPA = convert2EPA(current25Mean)
@@ -140,7 +185,7 @@ class Airy:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=("airy - send an alert whenever a steep change in air quality from a "
                                                   "public Purple Air monitor is detected"))
-    parser.add_argument('sensorID', action='store', type=int)
+    parser.add_argument('sensorID', action='store', type=int, nargs="*")
     parser.add_argument('-l', '--log-format', action='store_true', help='Emit log file format')
     parser.add_argument('--twilio-sid', action='store', help='Twilio Account SID')
     parser.add_argument('--twilio-token', action='store', help='Twilio Account Token')
@@ -148,6 +193,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--sync-sensors', action='store_true', help='Sync sensors')
     parser.add_argument('-q', '--query-nearby-sensors', action='store_true', help='Query nearby sensors')
     parser.add_argument('-t', '--to-sms', action='append', nargs='+', help="Destination SMS number")
+    parser.add_argument('-v', '--version', action='store_true', help='Display version')
     result = parser.parse_args()
     app = AiryArgparse(result)
 
