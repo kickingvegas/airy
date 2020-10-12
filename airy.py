@@ -26,17 +26,24 @@ from airylib.SensorManager import SensorManager
 from datetime import datetime
 from pytz import timezone
 
+AIRY_VERSION = '0.1.0'
+
 class AiryArgparse:
     def __init__(self, parsedArgs):
         networkManager = NetworkManager()
         database = AiryDB()
-        if parsedArgs.query_nearby_sensors:
-            sensorManager = SensorManager(parsedArgs, networkManager, database)
 
+        if parsedArgs.version:
+            sys.stdout.write('{0}\n'.format(AIRY_VERSION))
+            sys.exit(0)
 
-        elif parsedArgs.sync_sensors:
+        if parsedArgs.sync_sensors:
             sensorManager = SensorManager(parsedArgs, networkManager, database)
             sensorManager.sync()
+
+        elif parsedArgs.query_nearby_sensors:
+            # TODO: implement
+            sensorManager = SensorManager(parsedArgs, networkManager, database)
 
         else:
             airy = Airy(parsedArgs, networkManager, database)
@@ -48,6 +55,7 @@ class Airy:
         self.sensorID = args.sensorID
         self.networkManager = networkManager
         self.database = database
+
 
     def run(self):
         #sys.stdout.write('Airy SensorID: {0}\n'.format(self.sensorID))
@@ -185,6 +193,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--sync-sensors', action='store_true', help='Sync sensors')
     parser.add_argument('-q', '--query-nearby-sensors', action='store_true', help='Query nearby sensors')
     parser.add_argument('-t', '--to-sms', action='append', nargs='+', help="Destination SMS number")
+    parser.add_argument('-v', '--version', action='store_true', help='Display version')
     result = parser.parse_args()
     app = AiryArgparse(result)
 
