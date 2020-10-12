@@ -273,6 +273,12 @@ class AiryDB:
         c.execute(cmd)
         conn.commit()
 
+    def reindexSensors(self, conn):
+        c = conn.cursor()
+
+        cmd = 'REINDEX idx_sensorID'
+        c.execute(cmd)
+        conn.commit()
 
 
 

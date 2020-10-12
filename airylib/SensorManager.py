@@ -78,6 +78,7 @@ class SensorManager:
                     if count == total:
                         sys.stdout.write('\n')
 
+            self.database.reindexSensors(conn)
             self.database.closeConnection(conn)
 
 
