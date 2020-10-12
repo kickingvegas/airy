@@ -14,6 +14,13 @@ err:
 help:
 	./airy.py -h
 
+venv:
+	python3 -m venv ./venv
+
+install-dependencies: venv
+	pip install -r requirements.txt
+
+
 com.yummymelon.airy.plist: com.yummymelon.airy.js
 	plutil -convert xml1 -o com.yummymelon.airy.plist com.yummymelon.airy.js
 
