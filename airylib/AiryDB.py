@@ -66,6 +66,24 @@ class AiryDB:
             c.execute(cmd)
             conn.commit()
 
+        c.execute(''' SELECT count(name) FROM sqlite_master WHERE type='index' AND name='idx_sensorID' ''')
+        if c.fetchone()[0] == 1:
+            pass
+        else:
+            sys.stderr.write('Creating index for sensors.sensorID.\n')
+            bufList = []
+            bufList.append('CREATE')
+            bufList.append('UNIQUE')
+            bufList.append('INDEX')
+            bufList.append('"idx_sensorID"')
+            bufList.append('ON')
+            bufList.append('sensors')
+            columns = ['sensorID']
+            bufList.append('({0})'.format(', '.join(columns)))
+            cmd = ' '.join(bufList)
+            c.execute(cmd)
+            conn.commit()
+
         conn.close()
 
     def deltas(self, sensorIDs):
@@ -208,5 +226,48 @@ class AiryDB:
 
 
     def updateSensor(self, record, conn):
-        # TODO: Implement update
-        pass
+        c = conn.cursor()
+        bufList = []
+        bufList.append('UPDATE')
+        bufList.append('sensors')
+        bufList.append('set')
+
+        columns = []
+        values = []
+
+        fieldMapValues = ['sensorID', 'lat', 'lon', 'label', 'deviceLocationType']
+        for key in fieldMapValues:
+            try:
+                value = getattr(record, key)
+
+                if isinstance(value, str):
+                    valueString = '"{0}"'.format(value)
+                else:
+                    valueString = '{0}'.format(value)
+                values.append(valueString)
+                columns.append(key)
+            except AttributeError:
+                continue
+
+        pairList = []
+        for pair in zip(columns, values):
+            columnName, value = pair
+            pairList.append('{0} = {1}'.format(columnName, value))
+        bufList.append('{0}'.format(', '.join(pairList)))
+
+        bufList.append('WHERE')
+        bufList.append('sensorID = {0}'.format(record.sensorID))
+
+        cmd = ' '.join(bufList)
+        sys.stderr.write('{0}\n'.format(cmd))
+
+        c.execute(cmd)
+        conn.commit()
+
+
+
+
+
+
+
+
