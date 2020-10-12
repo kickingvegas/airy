@@ -31,6 +31,8 @@ TBD
 
 ## TL;DR Installation
 
+In the top level directory `airy` execute the following commands:
+
 ``` 
 $ make venv
 $ source venv/bin/activate
