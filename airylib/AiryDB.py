@@ -123,7 +123,6 @@ class AiryDB:
         c = conn.cursor()
         cmd = 'select * from purpleair where lastSeen = {0} AND sensorID = {1}'.format(record.lastSeen, record.sensorID)
         rows = c.execute(cmd).fetchall()
-        conn.commit()
         conn.close()
 
         if len(rows) == 0:
@@ -181,7 +180,7 @@ class AiryDB:
         conn.close()
 
     def readSensor(self, record, conn):
-        cmd = 'select sensorID, label, lat, lon, deviceLocationType  from sensors where sensorID = {0}'.format(record.sensorID)
+        cmd = 'select sensorID, label, lat, lon, deviceLocationType from sensors where sensorID = {0}'.format(record.sensorID)
         c = conn.cursor()
         rows = c.execute(cmd).fetchall()
 
@@ -231,7 +230,6 @@ class AiryDB:
         cmd = ' '.join(bufList)
 
         c.execute(cmd)
-        conn.commit()
 
 
     def updateSensor(self, record, conn):
@@ -271,7 +269,6 @@ class AiryDB:
         sys.stderr.write('{0}\n'.format(cmd))
 
         c.execute(cmd)
-        conn.commit()
 
     def reindexSensors(self, conn):
         c = conn.cursor()
