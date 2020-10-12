@@ -185,7 +185,7 @@ class Airy:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=("airy - send an alert whenever a steep change in air quality from a "
                                                   "public Purple Air monitor is detected"))
-    parser.add_argument('sensorID', action='store', type=int, nargs="*")
+    parser.add_argument('sensorID', action='store', type=int, nargs="?")
     parser.add_argument('-l', '--log-format', action='store_true', help='Emit log file format')
     parser.add_argument('--twilio-sid', action='store', help='Twilio Account SID')
     parser.add_argument('--twilio-token', action='store', help='Twilio Account Token')
