@@ -1,0 +1,28 @@
+#+BEGIN_SRC plantuml :file images/airy-architecture.png
+participant User
+participant "airy.db" as db
+participant airy
+participant PurpleAir
+participant Twilio
+
+User -> airy: airy.py <sensorID>
+db <- airy: read last <sensorID> info
+db --> airy: last <sensorID> info
+airy -> PurpleAir: GET https://www.purpleair.com/json?show=<sensorID>
+airy <-- PurpleAir: OK: JSON for current <sensorID> info
+db <- airy: update <sensorID> info
+db --> airy: OK
+User <-- airy: Report on stdout
+
+note over airy: Compare current and last info\nIf alert is needed, send one.
+
+airy -\ Twilio: SMS alert
+User /- Twilio: SMS alert
+
+
+
+
+#+END_SRC
+
+#+RESULTS:
+[[file:images/airy-architecture.png]]

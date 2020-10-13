@@ -1,0 +1,15 @@
+* Installation Instructions
+
+** Requirements
+
+- /Python/ 3.8+ 
+- /SQLite/ 3.x+
+
+** TL;DR
+
+#+BEGIN_SRC sh
+$ make venv
+$ source venv/bin/activate
+$ make install-dependencies
+#+END_SRC
+

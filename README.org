@@ -1,0 +1,93 @@
+* airy 0.1.0
+
+*airy* is a command line Python script to collect [[https://www2.purpleair.com][PurpleAir]] air quality sensor data into a database. 
+
+When run periodically, *airy* can monitor for changes in air quality and send an SMS alert if desired.
+
+* How it works
+
+The following sequence diagram illustrates how *airy* works. 
+
+[[file:doc/images/airy-architecture.png]]
+
+*airy* keeps a database of requests for sensor info in a SQLite3 database named ~airy.db~. Each sensor is uniquely identified by a ~sensorID~. When *airy* is run, it reads the last sensor info for that ~sensorID~ (written from a previous run of *airy*) and requests the most recent data for that same sensor from /PurpleAir/'s servers. *airy* will save the new data and compare it with the previous to determine if an alert should be sent.
+
+* Features
+
+- Command line interface to support automation.
+- Storage of /PurpleAir/ sensor readings are stored in [[https://www.sqlite.org/index.html][SQLite]] 3 database.
+- SMS alert support to be notified when AQI has gotten worse or better.
+   - Requires [[https://www.twilio.com][Twilio]] SMS service with the following info:
+       - Account SID
+       - Auth Token
+       - Twilio Phone Number
+
+* How to use
+
+** Get the ~sensorID~
+    1. Open the [[https://www.purpleair.com/map?opt=1/mAQI/a10/cC0#11/37.7703/-122.4407][PurpleAir Map]]
+    2. Find a sensor of interest and tap on it to pull up its dialog.
+    3. At the bottom of the dialog, tap /Get this Widget/
+    4. Tap /JSON/ to open the JSON data of that sensor.
+    5. Find the value for the first ~ID~ key in the JSON. That is the ~sensorID~.
+
+** Running on the command line
+
+Call *airy* with the ~sensorID~ as a parameter. For example, to get data for ~sensorID 68949~ run the following command:
+
+#+BEGIN_SRC sh
+$ ./airy.py 68949
+Airy SensorID: 68949
+    Raw PM2.5: 9.96   -10.4%
+    EPA PM2.5: 41
+ AQ & U PM2.5: 43
+      Level 0: Good. Air quality is considered satisfactory.
+#+END_SRC
+
+Automating to periodically run this command can enable alerting. 
+
+* Requirements
+
+- Python 3.8
+- SQLite 3.31
+
+* TL;DR Installation
+
+In the top level directory ~airy~ execute the following commands:
+
+#+BEGIN_SRC sh
+$ make venv
+$ source venv/bin/activate
+$ make install-dependencies
+#+END_SRC
+
+* Thank Yous
+
+Thanks to /PurpleAir/ for providing the sensor data that makes this script even possible.
+
+Thanks to all the Firefighters working throughout the West Coast. 
+
+
+* License
+
+Copyright 2020 Charles Y. Choi
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+
+
+
+
+
+
+

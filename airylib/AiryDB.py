@@ -123,7 +123,6 @@ class AiryDB:
         c = conn.cursor()
         cmd = 'select * from purpleair where lastSeen = {0} AND sensorID = {1}'.format(record.lastSeen, record.sensorID)
         rows = c.execute(cmd).fetchall()
-        conn.commit()
         conn.close()
 
         if len(rows) == 0:
@@ -181,14 +180,23 @@ class AiryDB:
         conn.close()
 
     def readSensor(self, record, conn):
-        cmd = 'select * from sensors where sensorID = {0}'.format(record.sensorID)
+        cmd = 'select sensorID, label, lat, lon, deviceLocationType from sensors where sensorID = {0}'.format(record.sensorID)
         c = conn.cursor()
         rows = c.execute(cmd).fetchall()
 
-        if len(rows) == 0:
-            return None
-        else:
-            return rows
+        result = []
+        for row in rows:
+            e = {}
+            e['sensorID'] = row[0]
+            e['label'] = row[1]
+            e['lat'] = row[2]
+            e['lon'] = row[3]
+            e['deviceLocationType'] = row[4]
+            result.append(e)
+
+        return result
+
+
 
 
     def createSensor(self, record, conn):
@@ -222,7 +230,6 @@ class AiryDB:
         cmd = ' '.join(bufList)
 
         c.execute(cmd)
-        conn.commit()
 
 
     def updateSensor(self, record, conn):
@@ -262,8 +269,13 @@ class AiryDB:
         sys.stderr.write('{0}\n'.format(cmd))
 
         c.execute(cmd)
-        conn.commit()
 
+    def reindexSensors(self, conn):
+        c = conn.cursor()
+
+        cmd = 'REINDEX idx_sensorID'
+        c.execute(cmd)
+        conn.commit()
 
 
 

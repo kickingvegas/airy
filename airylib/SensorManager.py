@@ -43,20 +43,28 @@ class SensorManager:
             for e in responseDict['results']:
                 count += 1
 
-                pResult = PurpleAirResult(e)
+                purpleAirResult = PurpleAirResult(e)
                 ## Read then write
-                rows = self.database.readSensor(pResult, conn)
-                if rows is None:
-                    self.database.createSensor(pResult, conn)
+                rows = self.database.readSensor(purpleAirResult, conn)
+                if len(rows) == 0:
+                    self.database.createSensor(purpleAirResult, conn)
                 else:
                     # Compare row with pResult to update
-                    if hasattr(pResult, 'lat') and hasattr(pResult, 'lon'):
+                    if hasattr(purpleAirResult, 'lat') and hasattr(purpleAirResult, 'lon'):
                         for row in rows:
-                            lat = round(row[2], 7)
-                            lon = round(row[3], 7)
-                            if (pResult.lat != lat) or (pResult.lon != lon):
-                                sys.stderr.write('{0}, {1}, {2}\n'.format(lat, lon, row[4]))
-                                self.database.updateSensor(pResult, conn)
+                            if row['lat'] is not None:
+                                lat = round(row['lat'], 7)
+                            else:
+                                lat = None
+
+                            if row['lon'] is not None:
+                                lon = round(row['lon'], 7)
+                            else:
+                                lon = None
+
+                            if (purpleAirResult.lat != lat) or (purpleAirResult.lon != lon):
+                                sys.stderr.write('{0}, {1}, {2}\n'.format(lat, lon, row['label']))
+                                self.database.updateSensor(purpleAirResult, conn)
                                 updateCount += 1
                             else:
                                 pass
@@ -70,6 +78,7 @@ class SensorManager:
                     if count == total:
                         sys.stdout.write('\n')
 
+            self.database.reindexSensors(conn)
             self.database.closeConnection(conn)
 
 

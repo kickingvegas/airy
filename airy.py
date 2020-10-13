@@ -41,13 +41,14 @@ class AiryArgparse:
             sensorManager = SensorManager(parsedArgs, networkManager, database)
             sensorManager.sync()
 
-        elif parsedArgs.query_nearby_sensors:
-            # TODO: implement
-            sensorManager = SensorManager(parsedArgs, networkManager, database)
-
-        else:
+        elif parsedArgs.sensorID:
             airy = Airy(parsedArgs, networkManager, database)
             airy.run()
+
+        else:
+            sys.stderr.write('Undefined sensorID. Exiting...\n')
+            sys.exit(1)
+
 
 class Airy:
     def __init__(self, args, networkManager, database):
@@ -185,15 +186,15 @@ class Airy:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=("airy - send an alert whenever a steep change in air quality from a "
                                                   "public Purple Air monitor is detected"))
-    parser.add_argument('sensorID', action='store', type=int, nargs="*")
-    parser.add_argument('-l', '--log-format', action='store_true', help='Emit log file format')
+    parser.add_argument('sensorID', action='store', type=int, nargs="?")
+    parser.add_argument('-l', '--log-format', action='store_true', help='Output log file format on stdout, otherwise use display format.')
+    parser.add_argument('-s', '--sync-sensors', action='store_true', help='Sync sensors. Progress displayed on stdout, updated records on stderr.')
+    parser.add_argument('-t', '--to-sms', action='append', nargs='+', help="Destination SMS number")
     parser.add_argument('--twilio-sid', action='store', help='Twilio Account SID')
     parser.add_argument('--twilio-token', action='store', help='Twilio Account Token')
     parser.add_argument('--twilio-number', action='store', help='Twilio Phone Number')
-    parser.add_argument('-s', '--sync-sensors', action='store_true', help='Sync sensors')
-    parser.add_argument('-q', '--query-nearby-sensors', action='store_true', help='Query nearby sensors')
-    parser.add_argument('-t', '--to-sms', action='append', nargs='+', help="Destination SMS number")
     parser.add_argument('-v', '--version', action='store_true', help='Display version')
+
     result = parser.parse_args()
     app = AiryArgparse(result)
 
