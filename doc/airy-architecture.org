@@ -1,0 +1,14 @@
+#+BEGIN_SRC plantuml :file images/airy-architecture.png
+participant User
+participant "airy.db" as db
+participant airy
+participant PurpleAir
+
+User -> airy: airy.py <sensorID>
+airy -> PurpleAir: GET https://www.purpleair.com/json?show=<sensorID>
+airy <-- PurpleAir: OK: JSON for <sensorID>
+
+#+END_SRC
+
+#+RESULTS:
+[[file:images/airy-architecture.png]]

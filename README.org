@@ -2,20 +2,7 @@
 
 *airy* is a command line Python script to read a [[https://www2.purpleair.com][PurpleAir]] sensor reading via PurpleAir's REST API. 
 
-#+BEGIN_SRC plantuml :file doc/images/airy-architecture.svg
-participant User
-participant "airy.db" as db
-participant airy
-participant PurpleAir
-
-User -> airy: airy.py <sensorID>
-airy -> PurpleAir: GET https://www.purpleair.com/json?show=<sensorID>
-airy <-- PurpleAir: OK: JSON for <sensorID>
-
-#+END_SRC
-
-#+RESULTS:
-[[file:doc/images/airy-architecture.svg]]
+[[file:doc/images/airy-architecture.png]]
 
 
 * Features
