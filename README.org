@@ -10,7 +10,7 @@ The following sequence diagram illustrates how *airy* works.
 
 [[file:doc/images/airy-architecture.png]]
 
-*airy* keeps a database of requests for sensor info in a SQLite3 database named `airy.db`. Each sensor is uniquely identified by a `sensorID`. When *airy* is run, it reads the last sensor info for that `sensorID` (written from a previous run of *airy*) and requests the most recent data for that same sensor from /PurpleAir/'s servers. *airy* will save the new data and compare it with the previous to determine if an alert should be sent.
+*airy* keeps a database of requests for sensor info in a SQLite3 database named ~airy.db~. Each sensor is uniquely identified by a ~sensorID~. When *airy* is run, it reads the last sensor info for that ~sensorID~ (written from a previous run of *airy*) and requests the most recent data for that same sensor from /PurpleAir/'s servers. *airy* will save the new data and compare it with the previous to determine if an alert should be sent.
 
 * Features
 
@@ -65,7 +65,7 @@ $ make install-dependencies
 
 Thanks to /PurpleAir/ for providing the sensor data that makes this script even possible.
 
-Thanks to all the Firefighters throughout the West Coast. 
+Thanks to all the Firefighters working throughout the West Coast. 
 
 
 * License
