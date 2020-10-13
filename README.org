@@ -53,7 +53,7 @@ Automating to periodically run this command can enable alerting.
 
 * TL;DR Installation
 
-In the top level directory `airy` execute the following commands:
+In the top level directory ~airy~ execute the following commands:
 
 #+BEGIN_SRC sh
 $ make venv
