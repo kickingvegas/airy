@@ -45,9 +45,14 @@ class AiryArgparse:
             # TODO: implement
             sensorManager = SensorManager(parsedArgs, networkManager, database)
 
-        else:
+        elif parsedArgs.sensorID:
             airy = Airy(parsedArgs, networkManager, database)
             airy.run()
+
+        else:
+            sys.stderr.write('Undefined sensorID. Exiting...\n')
+            sys.exit(1)
+
 
 class Airy:
     def __init__(self, args, networkManager, database):
