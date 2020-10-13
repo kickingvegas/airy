@@ -24,16 +24,16 @@ The following sequence diagram illustrates how *airy* works.
 
 * How to use
 
-** Get the `sensorID`
+** Get the ~sensorID~
     1. Open the [[https://www.purpleair.com/map?opt=1/mAQI/a10/cC0#11/37.7703/-122.4407][PurpleAir Map]]
     2. Find a sensor of interest and tap on it to pull up its dialog.
     3. At the bottom of the dialog, tap /Get this Widget/
     4. Tap /JSON/ to open the JSON data of that sensor.
-    5. Find the value for the first `ID` key in the JSON. That is the `sensorID`.
+    5. Find the value for the first ~ID~ key in the JSON. That is the ~sensorID~.
 
 ** Running on the command line
 
-Call *airy* with the `sensorID` as a parameter. For example, to get data for `sensorID` `68949`:
+Call *airy* with the ~sensorID~ as a parameter. For example, to get data for ~sensorID 68949~ run the following command:
 
 #+BEGIN_SRC sh
 $ ./airy.py 68949
@@ -43,6 +43,8 @@ Airy SensorID: 68949
  AQ & U PM2.5: 43
       Level 0: Good. Air quality is considered satisfactory.
 #+END_SRC
+
+Automating to periodically run this command can enable alerting. 
 
 * Requirements
 
@@ -58,6 +60,12 @@ $ make venv
 $ source venv/bin/activate
 $ make install-dependencies
 #+END_SRC
+
+* Thank Yous
+
+Thanks to /PurpleAir/ for providing the sensor data that makes this script even possible.
+
+Thanks to all the Firefighters throughout the West Coast. 
 
 
 * License
