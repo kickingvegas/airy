@@ -189,10 +189,15 @@ if __name__ == '__main__':
     parser.add_argument('sensorID', action='store', type=int, nargs="?")
     parser.add_argument('-l', '--log-format', action='store_true', help='Output log file format on stdout, otherwise use display format.')
     parser.add_argument('-s', '--sync-sensors', action='store_true', help='Sync sensors. Progress displayed on stdout, updated records on stderr.')
-    parser.add_argument('-t', '--to-sms', action='append', nargs='+', help="Destination SMS number")
-    parser.add_argument('--twilio-sid', action='store', help='Twilio Account SID')
-    parser.add_argument('--twilio-token', action='store', help='Twilio Account Token')
-    parser.add_argument('--twilio-number', action='store', help='Twilio Phone Number')
+    if os.environ.get('AIRY_TO_SMS'):
+        parser.add_argument('-t', '--to-sms', action='append', nargs='+', help="Destination SMS number",
+                            default=[os.environ.get('AIRY_TO_SMS')])
+    else:
+        parser.add_argument('-t', '--to-sms', action='append', nargs='+', help="Destination SMS number")
+
+    parser.add_argument('--twilio-sid', action='store', help='Twilio Account SID', default=os.environ.get('TWILIO_SID'))
+    parser.add_argument('--twilio-token', action='store', help='Twilio Account Token', default=os.environ.get('TWILIO_TOKEN'))
+    parser.add_argument('--twilio-number', action='store', help='Twilio Phone Number', default=os.environ.get('TWILIO_NUMBER'))
     parser.add_argument('-v', '--version', action='store_true', help='Display version')
 
     result = parser.parse_args()
